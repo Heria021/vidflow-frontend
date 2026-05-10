@@ -389,7 +389,7 @@ export const setAudioReady = mutation({
  * Sets totalImages and advances:
  *   scene_map_pending → scene_map_ready → pending_images  (two hops, atomic)
  */
-export const setSceneMapReady = mutation({
+export const setSceneMapReady = internalMutation({
   args: {
     projectId:   v.id("projects"),
     totalImages: v.number(),
@@ -436,7 +436,7 @@ export const setSceneMapReady = mutation({
  * Idempotent guard: a scene that is already confirmed won't double-count.
  * Caller must pass sceneId so we can check imageReady before incrementing.
  */
-export const confirmImageReady = mutation({
+export const confirmImageReady = internalMutation({
   args: {
     projectId: v.id("projects"),
     sceneId:   v.id("scenes"),
@@ -702,12 +702,42 @@ export const internalSetError = internalMutation({
 });
 
 
-// ADD THIS to convex/projects.ts — at the bottom, alongside internalSetRenderDone
-//
-// setRenderingInternal
-// Same as the public setRendering but callable from renderJobs.createRenderJob
-// via ctx.runMutation(internal.projects.setRenderingInternal, { projectId }).
-// The public setRendering stays for direct UI button calls.
+// ─────────────────────────────────────────────────────────────────────────────
+// ADD BOTH of these to the bottom of convex/projects.ts
+// alongside the existing internalSetRenderDone + internalSetError
+// ─────────────────────────────────────────────────────────────────────────────
+
+// ── 0. setAudioPending ───────────────────────────────────────────────────────
+// Called by useVoiceover hook immediately before the server action runs.
+// Moves project: draft → audio_pending (or any editable status → audio_pending).
+// Gives the UI an instant status flip without waiting for TTS to finish.
+
+export const setAudioPending = mutation({
+  args: { projectId: v.id("projects") },
+  handler: async (ctx, { projectId }) => {
+    const project = await assertProjectExists(ctx, projectId);
+
+    // Allow re-generation from audio_ready or error states too
+    const allowed = new Set(["draft", "audio_ready", "error"]);
+    if (!allowed.has(project.status)) {
+      throw new ConvexError(
+        `setAudioPending not allowed from status "${project.status}".`,
+      );
+    }
+
+    await transitionStatus(ctx, projectId, "audio_pending", {
+      fromStatus:  project.status,
+      triggeredBy: "user",
+      note:        "Audio generation started.",
+    });
+
+    return projectId;
+  },
+});
+
+// ── 1. setRenderingInternal ───────────────────────────────────────────────────
+// Called by renderJobs.createRenderJob via ctx.runMutation(internal.projects.*)
+// Public setRendering stays for direct UI button calls.
 
 export const setRenderingInternal = internalMutation({
   args: { projectId: v.id("projects") },
@@ -716,7 +746,7 @@ export const setRenderingInternal = internalMutation({
 
     if (project.status !== "audio_ready") {
       throw new ConvexError(
-        `setRenderingInternal expects status "audio_ready", got "${project.status}".`,
+        `setRenderingInternal expects "audio_ready", got "${project.status}".`,
       );
     }
 
@@ -729,3 +759,70 @@ export const setRenderingInternal = internalMutation({
     return projectId;
   },
 });
+
+// ── 2. setAudioReadyInternal ──────────────────────────────────────────────────
+// Called by convex/actions.ts saveAudioResult.
+// Same as public setAudioReady but callable from actions via internal.*.
+
+export const setAudioReadyInternal = internalMutation({
+  args: {
+    projectId:         v.id("projects"),
+    audioUrl:          v.string(),
+    audioDurationSecs: v.number(),
+    timestamps:        v.optional(v.array(v.object({
+      word:  v.string(),
+      start: v.number(),
+      end:   v.number(),
+    }))),
+  },
+  handler: async (ctx, args) => {
+    const project = await assertProjectExists(ctx, args.projectId);
+
+    if (project.status !== "audio_pending") {
+      throw new ConvexError(
+        `setAudioReadyInternal expects "audio_pending", got "${project.status}".`,
+      );
+    }
+
+    await transitionStatus(ctx, args.projectId, "audio_ready", {
+      fromStatus:  "audio_pending",
+      triggeredBy: "system",
+      note:        `Audio ready. Duration: ${args.audioDurationSecs.toFixed(2)}s.`,
+      extraPatch: {
+        audioUrl:          args.audioUrl,
+        audioDurationSecs: args.audioDurationSecs,
+        timestamps:        args.timestamps,
+      },
+    });
+
+    return args.projectId;
+  },
+});
+
+// ── 3. setSceneMapPending ─────────────────────────────────────────────────────
+// Called by convex/actions.ts insertSceneMap action before bulkInsertScenes.
+// Moves project: audio_ready → scene_map_pending.
+// Gives the UI immediate feedback that scene generation has started.
+
+export const setSceneMapPending = internalMutation({
+  args: { projectId: v.id("projects") },
+  handler: async (ctx, { projectId }) => {
+    const project = await assertProjectExists(ctx, projectId);
+
+    if (project.status !== "audio_ready") {
+      throw new ConvexError(
+        `setSceneMapPending expects "audio_ready", got "${project.status}".`,
+      );
+    }
+
+    await transitionStatus(ctx, projectId, "scene_map_pending", {
+      fromStatus:  "audio_ready",
+      triggeredBy: "system",
+      note:        "Scene map generation started.",
+    });
+
+    return projectId;
+  },
+});
+
+

@@ -1,0 +1,10 @@
+app/[slug]/playground copy/page.tsx(9,10): error TS2305: Module '"@/lib/workflow/create-project"' has no exported member 'createProjectWorkflow'.
+app/[slug]/playground/page.tsx(238,43): error TS2322: Type 'Scene[]' is not assignable to type '{ imagePrompt?: string | undefined; motion: "zoom_in" | "zoom_out" | "pan_left" | "pan_right" | "pan_up" | "pan_down" | "static"; sceneIndex: number; startTime: number; endTime: number; duration: number; subtitleText: string; }[]'.
+  Type 'Scene' is not assignable to type '{ imagePrompt?: string | undefined; motion: "zoom_in" | "zoom_out" | "pan_left" | "pan_right" | "pan_up" | "pan_down" | "static"; sceneIndex: number; startTime: number; endTime: number; duration: number; subtitleText: string; }'.
+    Types of property 'motion' are incompatible.
+      Type 'string' is not assignable to type '"zoom_in" | "zoom_out" | "pan_left" | "pan_right" | "pan_up" | "pan_down" | "static"'.
+app/[slug]/playground/page.tsx(248,11): error TS2322: Type 'import("/Users/hari/Desktop/vidflow-frontend/lib/workflow/create-project").Scene[]' is not assignable to type 'Scene[]'.
+  Type 'Scene' is missing the following properties from type 'Scene': scene_index, image_filename, subtitle_text, start_time, and 2 more.
+components/ui/calendar.tsx(90,9): error TS2353: Object literal may only specify known properties, and 'table' does not exist in type 'Partial<ClassNames>'.
+lib/services/index.ts(16,3): error TS2724: '"./voiceover"' has no exported member named 'VOICE_OPTIONS'. Did you mean 'getVoiceOptions'?
+lib/services/index.ts(19,3): error TS2459: Module '"./voiceover"' declares 'VoiceOption' locally, but it is not exported.

@@ -8,9 +8,12 @@
  * @module
  */
 
+import type * as action from "../action.js";
 import type * as channels from "../channels.js";
+import type * as files from "../files.js";
 import type * as projects from "../projects.js";
 import type * as renderJob from "../renderJob.js";
+import type * as scenes from "../scenes.js";
 import type * as statuslog from "../statuslog.js";
 
 import type {
@@ -20,9 +23,12 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  action: typeof action;
   channels: typeof channels;
+  files: typeof files;
   projects: typeof projects;
   renderJob: typeof renderJob;
+  scenes: typeof scenes;
   statuslog: typeof statuslog;
 }>;
 
